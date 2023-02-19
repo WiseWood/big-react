@@ -1,6 +1,7 @@
 import { Props, Key, Ref } from 'shared/ReactTypes';
 import { WorkTag } from './workTags';
 import { Flags, NoFlags } from './fiberFlags';
+import { Container } from 'hostConfig';
 
 export class FiberNode {
 	type: any; // 节点的对应的真实 dom 的类型？？
@@ -16,8 +17,10 @@ export class FiberNode {
 	index: number;
 
 	memoizedProps: Props | null;
+	memoizedState: any;
 	alternate: FiberNode | null;
 	flags: Flags;
+	updateQueue: unknown;
 
 	constructor(tag: WorkTag, pendingProps: Props, key: Key) {
 		// 实例属性赋值
@@ -36,8 +39,52 @@ export class FiberNode {
 		// 作为工作单元
 		this.pendingProps = pendingProps; // 刚开始工作时，props是什么
 		this.memoizedProps = null; // 工作结束后，确定的props
+		this.memoizedState = null;
+		this.updateQueue = null;
 
 		this.alternate = null; // 和对应的 fiberNode 之间切换，比如当前 fiberNode 是 current，则alternate 是 workInProgress
 		this.flags = NoFlags; // 副作用
 	}
 }
+
+// 应用的根节点（非页面挂载的dom根节点）
+export class FiberRootNode {
+	container: Container; // 宿主环境，即页面挂载的dom根节点（真实dom？）
+	current: FiberNode; // 指向 hostRootFiber，即页面挂载的dom根节点对应的fiber
+	finishedWork: FiberNode | null; // 更新完成以后的 hostRootFiber
+
+	constructor(container: Container, hostRootFiber: FiberNode) {
+		this.container = container;
+		this.current = hostRootFiber;
+		hostRootFiber.stateNode = this;
+		this.finishedWork = null;
+	}
+}
+
+export const createWorkInProgress = (
+	current: FiberNode, // fiberNodeRoot.current -> hostRootFiber
+	pendingProps: Props
+): FiberNode => {
+	let wip = current.alternate;
+
+	if (wip === null) {
+		// 说明为首屏渲染（mount时）
+		wip = new FiberNode(current.tag, pendingProps, current.key);
+		wip.stateNode = current.stateNode;
+
+		wip.alternate = current;
+		current.alternate = wip;
+	} else {
+		// 说明更行时（update）
+		wip.pendingProps = pendingProps;
+		wip.flags = NoFlags;
+	}
+
+	wip.type = current.type;
+	wip.updateQueue = current.updateQueue;
+	wip.child = current.child;
+	wip.memoizedProps = current.memoizedProps;
+	wip.memoizedState = current.memoizedState;
+
+	return wip;
+};

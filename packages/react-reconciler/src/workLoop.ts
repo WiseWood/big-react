@@ -2,16 +2,44 @@
 
 import { beginWork } from './beginWork';
 import { completeWork } from './completeWork';
-import { FiberNode } from './fiber';
+import { createWorkInProgress, FiberNode, FiberRootNode } from './fiber';
+import { HostRoot } from './workTags';
 
 let workInProgress: FiberNode | null = null;
 
-function prepareFreshStack(fiber: FiberNode) {
-	workInProgress = fiber;
+function prepareFreshStack(root: FiberRootNode) {
+	workInProgress = createWorkInProgress(root.current, {});
 }
 
-function renderRoot(root: FiberNode) {
-	// 初始化，让当前的 workInProgress 指向第一个要遍历的 fiberNode
+// TODO: 在 fiber 中调度 update
+export function scheduleUpdateOnFiber(fiber: FiberNode) {
+	/**
+	 * 1、对于首屏渲染，fiber 为 hostRootFiber
+	 * 2、对于 this.setState，fiber 为 classComponent 对应的 fiber
+	 * 则需要从下往上，找到 fiberRootNode
+	 */
+	const root = markUpdateFromFiberToRoot(fiber);
+	renderRoot(root);
+}
+
+function markUpdateFromFiberToRoot(fiber: FiberNode) {
+	let node = fiber;
+	let parent = node.return;
+
+	while (parent !== null) {
+		node = parent;
+		parent = node.return;
+	}
+
+	if (node.tag === HostRoot) {
+		return node.stateNode;
+	}
+
+	return null;
+}
+
+function renderRoot(root: FiberRootNode) {
+	// 初始化，让当前的 workInProgress 指向第一个要遍历的 fiberNode，即 hostRootFiber
 	prepareFreshStack(root);
 
 	do {
