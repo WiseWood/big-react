@@ -18,12 +18,13 @@ export function createContainer(container: Container) {
 	return root;
 }
 
-// 在 ReacctDOM.createRoot().render(element) 时会调用
+// 在 ReacctDOM.createRoot().render(<App/>) 时会调用
 export function updateContainer(
 	element: ReactElementType | null,
 	root: FiberRootNode
 ) {
 	const hostRootFiber = root.current;
+	// 设置此时的 更新的状态为 reactElement，即：<App/>
 	const update = createUpdate<ReactElementType | null>(element);
 	enqueueUpdate(
 		hostRootFiber.updateQueue as UpdateQueue<ReactElementType | null>,

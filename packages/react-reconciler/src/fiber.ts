@@ -1,11 +1,11 @@
-import { Props, Key, Ref } from 'shared/ReactTypes';
-import { WorkTag } from './workTags';
+import { Props, Key, Ref, ReactElementType } from 'shared/ReactTypes';
+import { FunctionComponent, HostComponent, WorkTag } from './workTags';
 import { Flags, NoFlags } from './fiberFlags';
 import { Container } from 'hostConfig';
 
 export class FiberNode {
-	type: any; // 节点的对应的真实 dom 的类型？？
-	tag: WorkTag; // 节点的标记类型
+	type: any; // fiberNode 对应的 reactElement 的类型
+	tag: WorkTag; // fiberNode 的类型标记
 	pendingProps: Props;
 	key: Key;
 	stateNode: any; // 对应的真实的 dom 节点
@@ -88,3 +88,19 @@ export const createWorkInProgress = (
 
 	return wip;
 };
+
+export function createFiberFromElement(element: ReactElementType): FiberNode {
+	const { type, key, props } = element;
+	let fiberTag: WorkTag = FunctionComponent;
+
+	// 判断 reactElement 的类型
+	if (typeof type === 'string') {
+		// <div/> type: 'div'
+		fiberTag = HostComponent;
+	} else if (typeof type !== 'function' && __DEV__) {
+		console.warn('未定义的type类型', element);
+	}
+	const fiber = new FiberNode(fiberTag, props, key);
+	fiber.type = type;
+	return fiber;
+}
