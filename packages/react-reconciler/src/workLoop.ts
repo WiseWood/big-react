@@ -53,6 +53,10 @@ function renderRoot(root: FiberRootNode) {
 			workInProgress = null;
 		}
 	} while (true);
+
+	// 将当前已经标记完成的 wip fiberNode记录到 finishedWork 中
+	const finishedWork = root.current.alternate;
+	root.finishedWork = finishedWork;
 }
 
 function workLoop() {
