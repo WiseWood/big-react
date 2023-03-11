@@ -4,6 +4,7 @@ import { beginWork } from './beginWork';
 import { completeWork } from './completeWork';
 import { createWorkInProgress, FiberNode, FiberRootNode } from './fiber';
 import { HostRoot } from './workTags';
+import { MutationMask, NoFlags } from './fiberFlags';
 
 let workInProgress: FiberNode | null = null;
 
@@ -57,6 +58,43 @@ function renderRoot(root: FiberRootNode) {
 	// 将当前已经标记完成的 wip fiberNode记录到 finishedWork 中
 	const finishedWork = root.current.alternate;
 	root.finishedWork = finishedWork;
+
+	// 准备开始 commit 阶段，将标记好的flags 提交到宿主环境的过程
+	commitRoot(root);
+}
+
+function commitRoot(root: FiberRootNode) {
+	const finishedWork = root.finishedWork;
+
+	if (finishedWork === null) {
+		return;
+	}
+
+	if (__DEV__) {
+		console.warn('commit 阶段开始', finishedWork);
+	}
+
+	// 重置
+	root.finishedWork = null;
+
+	// 判断是否存在3个子阶段需要执行的操作
+	const subtreeHasEffect =
+		(finishedWork.subtreeFlags & MutationMask) !== NoFlags;
+	const rootHasEffect = (finishedWork.flags & MutationMask) !== NoFlags;
+
+	if (subtreeHasEffect || rootHasEffect) {
+		// beforeMutation
+
+		// mutation Placement
+
+		// 切换 current 为 wip（发生在 mutation 和 layout 阶段之间）
+		root.current = finishedWork;
+
+		// layout
+	} else {
+		// 切换 current 为 wip
+		root.current = finishedWork;
+	}
 }
 
 function workLoop() {
