@@ -5,6 +5,7 @@ import { completeWork } from './completeWork';
 import { createWorkInProgress, FiberNode, FiberRootNode } from './fiber';
 import { HostRoot } from './workTags';
 import { MutationMask, NoFlags } from './fiberFlags';
+import { commitMutationEffects } from './commitWork';
 
 let workInProgress: FiberNode | null = null;
 
@@ -86,6 +87,7 @@ function commitRoot(root: FiberRootNode) {
 		// beforeMutation
 
 		// mutation Placement
+		commitMutationEffects(finishedWork);
 
 		// 切换 current 为 wip（发生在 mutation 和 layout 阶段之间）
 		root.current = finishedWork;

@@ -51,7 +51,7 @@ export class FiberNode {
 
 // 应用的根节点（非页面挂载的dom根节点）
 export class FiberRootNode {
-	container: Container; // 宿主环境，即页面挂载的dom根节点（真实dom？）
+	container: Container; // 宿主环境，即页面挂载的dom根节点（真实dom）
 	current: FiberNode; // 指向 hostRootFiber，即页面挂载的dom根节点对应的fiber
 	finishedWork: FiberNode | null; // 更新完成以后的 hostRootFiber
 
