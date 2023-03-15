@@ -25,13 +25,21 @@ const ReactElement = (
 	return element;
 };
 
+export function isValidElement(object: any) {
+	return (
+		typeof object === 'object' &&
+		object !== null &&
+		object.$$typeof === REACT_ELEMENT_TYPE
+	);
+}
+
 export const jsx = (type: ElementType, config: any, ...maybeChildren: any) => {
 	let key: Key = null;
 	let ref: Ref = null;
 	const props: Props = {};
 
 	for (const prop in config) {
-		const val = config[props];
+		const val = config[prop];
 		if (prop === 'key') {
 			if (val !== undefined) {
 				key = '' + val; // 转换为字符串
@@ -52,7 +60,7 @@ export const jsx = (type: ElementType, config: any, ...maybeChildren: any) => {
 
 	const maybeChildrenLength = maybeChildren.length;
 	if (maybeChildrenLength) {
-		if (maybeChildren === 1) {
+		if (maybeChildrenLength === 1) {
 			props.children = maybeChildren[0];
 		} else {
 			props.children = maybeChildren;
