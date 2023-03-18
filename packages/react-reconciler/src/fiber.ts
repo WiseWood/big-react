@@ -22,6 +22,7 @@ export class FiberNode {
 	flags: Flags;
 	subtreeFlags: Flags;
 	updateQueue: unknown;
+	deletions: FiberNode[] | null;
 
 	constructor(tag: WorkTag, pendingProps: Props, key: Key) {
 		// 实例属性赋值
@@ -46,6 +47,7 @@ export class FiberNode {
 		this.alternate = null; // 和对应的 fiberNode 之间切换，比如当前 fiberNode 是 current，则alternate 是 workInProgress
 		this.flags = NoFlags; // 副作用
 		this.subtreeFlags = NoFlags;
+		this.deletions = null;
 	}
 }
 
@@ -77,10 +79,11 @@ export const createWorkInProgress = (
 		wip.alternate = current;
 		current.alternate = wip;
 	} else {
-		// 说明更行时（update）
+		// 说明更新时（update）
 		wip.pendingProps = pendingProps;
 		wip.flags = NoFlags;
 		wip.subtreeFlags = NoFlags;
+		wip.deletions = null;
 	}
 
 	wip.type = current.type;
