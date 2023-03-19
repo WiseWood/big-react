@@ -42,6 +42,9 @@ function ChildReconciler(shouldTrackEffects: boolean) {
 						existing.return = returnFiber;
 						return existing;
 					}
+
+					// 删除旧的
+					deleteChild(returnFiber, currentFiber);
 				} else {
 					if (__DEV__) {
 						console.warn('还未实现的react类型', newChild);
