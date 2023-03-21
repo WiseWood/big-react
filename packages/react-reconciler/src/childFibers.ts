@@ -24,36 +24,59 @@ function ChildReconciler(shouldTrackEffects: boolean) {
 		}
 	}
 
+	function deleteRemainingChildren(
+		returnFiber: FiberNode,
+		currentFirstChild: FiberNode | null
+	) {
+		if (!shouldTrackEffects) {
+			return;
+		}
+
+		let childToDelete = currentFirstChild;
+
+		while (childToDelete !== null) {
+			deleteChild(returnFiber, childToDelete);
+			childToDelete = childToDelete.sibling;
+		}
+	}
+
 	function reconcileSingleElement(
 		returnFiber: FiberNode,
 		currentFiber: FiberNode | null,
 		newChild: ReactElementType
 	) {
 		const key = newChild.key;
-		work: if (currentFiber !== null) {
-			// update
+		while (currentFiber !== null) {
+			// update 流程
 			if (currentFiber.key === key) {
 				// key 相同
 				if (newChild.$$typeof === REACT_ELEMENT_TYPE) {
 					if (currentFiber.type === newChild.type) {
-						// type 也相同
-						// 复用
+						// key 和 type 都相同（例如：A1 -> A1 或 A1BC -> A1）
+						// 当前节点可复用
 						const existing = useFiber(currentFiber, newChild.props);
 						existing.return = returnFiber;
+
+						// 标记删除其他所有兄弟 fiberNode
+						deleteRemainingChildren(returnFiber, currentFiber.sibling);
 						return existing;
 					}
 
-					// 删除旧的
-					deleteChild(returnFiber, currentFiber);
+					// key 相同，type 不同（例如： A1 -> B1 或  ABC -> B1）
+					// 删除所有旧的
+					deleteRemainingChildren(returnFiber, currentFiber);
+					break;
 				} else {
 					if (__DEV__) {
 						console.warn('还未实现的react类型', newChild);
-						break work;
+						break;
 					}
 				}
 			} else {
-				// 删除旧的
+				// key 不同
+				// 删除旧的，继续单节点 diff 其他兄弟 fiberNode
 				deleteChild(returnFiber, currentFiber);
+				currentFiber = currentFiber.sibling;
 			}
 		}
 
@@ -69,16 +92,20 @@ function ChildReconciler(shouldTrackEffects: boolean) {
 		currentFiber: FiberNode | null,
 		content: string | number
 	) {
-		if (currentFiber !== null) {
-			// update
+		while (currentFiber !== null) {
+			// update 流程
 			if (currentFiber.tag === HostText) {
-				// 类型没变，可以复用
+				// 类型没变，当前节点可以复用
 				const existing = useFiber(currentFiber, { content });
 				existing.return = returnFiber;
+				// 标记删除其他所有兄弟 fiberNode
+				deleteRemainingChildren(returnFiber, currentFiber.sibling);
 				return existing;
 			}
 			// 删除旧的
 			deleteChild(returnFiber, currentFiber);
+			// 继续单节点 diff 其他兄弟 fiberNode
+			currentFiber = currentFiber.sibling;
 		}
 
 		const fiber = new FiberNode(HostText, { content }, null);
@@ -86,9 +113,13 @@ function ChildReconciler(shouldTrackEffects: boolean) {
 		return fiber;
 	}
 
-	// 标记优化：当 mount 首屏渲染时，不需要标记 子 fiberNode，因为此时直接 Placement HostRoot 就行
 	function placeSingleChild(fiber: FiberNode) {
-		if (shouldTrackEffects && fiber.alternate === null) {
+		if (
+			// 标记优化：当 mount 首屏渲染时，不需要标记(shouldTrackEffects: false) 子 fiberNode，因为此时直接 Placement HostRoot 就行
+			shouldTrackEffects &&
+			// 说明是新节点
+			fiber.alternate === null
+		) {
 			fiber.flags |= Placement;
 		}
 		return fiber;
