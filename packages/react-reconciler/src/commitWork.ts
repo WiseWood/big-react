@@ -90,22 +90,54 @@ const commitMutationEffectsOnFiber = (finishedWork: FiberNode) => {
 	}
 };
 
+function recordHostChildrenToDelete(
+	childrenToDelete: FiberNode[],
+	unmountFiber: FiberNode
+) {
+	// 1. 找到第一个 root host 节点
+	const lastOne = childrenToDelete[childrenToDelete.length - 1];
+
+	if (!lastOne) {
+		childrenToDelete.push(unmountFiber);
+	} else {
+		// 记录所有同级的 host 节点
+		let node = lastOne.sibling;
+		while (node !== null) {
+			// 判断当前遍历的子树节点是否为同级兄弟 host 节点
+			if (unmountFiber === node) {
+				childrenToDelete.push(unmountFiber);
+			}
+			node = node.sibling;
+		}
+	}
+}
+
 function commitDeletion(childToDelete: FiberNode) {
-	let rootHostNode: FiberNode | null = null;
+	/**
+	 * 例如1：移除 ul，因为是 host，可以直接移除，然后要 ummount 子树所有的节点
+	 * <div>
+	 * 	<ul>
+	 * 		<li></li>
+	 * 		<li></li>
+	 * 	</ul>
+	 * </div>
+	 * 例如2：移除 fragment，需要 ummount 子树所有的节点，判断当前遍历的子树节点 是否为 fragment 下的同级兄弟 host 节点，若是，则移除
+	 * <>
+	 * 	<span></span>
+	 * 	<span></span>
+	 * </>
+	 */
+	const rootHostChildrenToDelete: FiberNode[] = [];
 
 	// 删除子树时，要DFS子树所有节点，进行 unmount 处理
 	commitNestedComponent(childToDelete, (unmountFiber) => {
 		switch (unmountFiber.tag) {
 			case HostComponent:
-				if (rootHostNode === null) {
-					rootHostNode = unmountFiber;
-				}
+				recordHostChildrenToDelete(rootHostChildrenToDelete, unmountFiber);
 				// TODO 解绑 ref
 				return;
 			case HostText:
-				if (rootHostNode === null) {
-					rootHostNode = unmountFiber;
-				}
+				recordHostChildrenToDelete(rootHostChildrenToDelete, unmountFiber);
 				return;
 			case FunctionComponent:
 				// TODO useEffect unmount、解绑 ref
@@ -117,12 +149,14 @@ function commitDeletion(childToDelete: FiberNode) {
 		}
 	});
 
-	// 说明子树是宿主环境原生DOM，执行宿主环境DOM操作，将其移除
-	if (rootHostNode !== null) {
+	// 存在宿主环境的原生DOM类型（即，Host类型），执行宿主环境DOM操作，将其移除
+	if (rootHostChildrenToDelete.length) {
 		// 实际上 rootHostNode 就是 childToDelete
 		const hostParent = getHostParent(childToDelete);
 		if (hostParent !== null) {
-			removeChild((rootHostNode as FiberNode).stateNode, hostParent);
+			rootHostChildrenToDelete.forEach((node) => {
+				removeChild(node.stateNode, hostParent);
+			});
 		}
 	}
 
