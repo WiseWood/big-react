@@ -4,6 +4,8 @@ import currentDispatcher, {
 	resolveDispatcher
 } from './src/currentDispatcher';
 
+export { REACT_FRAGMENT_TYPE as Fragment } from 'shared/ReactSymbols';
+
 export const useState: Dispatcher['useState'] = (initialState) => {
 	const dispatcher = resolveDispatcher();
 	return dispatcher.useState(initialState);
