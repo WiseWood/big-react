@@ -71,13 +71,16 @@ export class FiberRootNode {
 }
 
 export const createWorkInProgress = (
-	current: FiberNode, // fiberNodeRoot.current -> hostRootFiber
+	current: FiberNode,
 	pendingProps: Props
 ): FiberNode => {
 	let wip = current.alternate;
 
 	if (wip === null) {
-		// 说明为首屏渲染（mount时）
+		/**
+		 * 第一种场景：首屏渲染 mount 时，fiberNodeRoot.current -> hostRootFiber 建立 alternate 与 current 关系
+		 * 第二种场景：首次更新 update 时，节点 diff 尝试复用，建立 alternate 与 current 关系
+		 */
 		wip = new FiberNode(current.tag, pendingProps, current.key);
 		wip.stateNode = current.stateNode;
 
