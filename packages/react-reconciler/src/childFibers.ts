@@ -290,7 +290,7 @@ function ChildReconciler(shouldTrackEffects: boolean) {
 			}
 		}
 
-		//  处理Fragment③： 数组类型的 fragment
+		//  处理Fragment③： 数组类型的 element -> 复用 fragment fiber or 创建新的 fragment fiber
 		if (Array.isArray(element)) {
 			return updateFragment(
 				returnFiber,
