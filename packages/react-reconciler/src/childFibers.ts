@@ -376,7 +376,7 @@ function updateFragment(
 	existingChildren: ExistingChildren
 ) {
 	let fiber;
-	if (!current || current.tag === Fragment) {
+	if (!current || current.tag !== Fragment) {
 		fiber = createFiberFromFragment(elements, key);
 	} else {
 		existingChildren.delete(key);
