@@ -3,6 +3,7 @@ import { Action } from 'shared/ReactTypes';
 
 export interface Update<State> {
 	action: Action<State>;
+	next: Update<any> | null;
 }
 
 export interface UpdateQueue<State> {
@@ -15,7 +16,8 @@ export interface UpdateQueue<State> {
 // 创建更新
 export const createUpdate = <State>(action: Action<State>): Update<State> => {
 	return {
-		action
+		action,
+		next: null
 	};
 };
 
@@ -34,6 +36,16 @@ export const enqueueUpdate = <State>(
 	updateQueue: UpdateQueue<State>,
 	update: Update<State>
 ) => {
+	const pending = updateQueue.shared.pending;
+	// 更新批处理：构造环状链表
+	if (pending === null) {
+		// 第一次触发更新
+		update.next = update;
+	} else {
+		update.next = pending.next;
+		pending.next = update;
+	}
+
 	updateQueue.shared.pending = update;
 };
 
@@ -47,17 +59,31 @@ export const processUpdateQueue = <State>(
 	};
 
 	if (pendingUpdate !== null) {
-		const action = pendingUpdate.action;
-		if (action instanceof Function) {
-			// baseState:1   update ->  (x) => 4x  -> memoizedState:4
-			// 例如：this.setState((x) => 4x)
-			result.memoizedState = action(baseState);
-		} else {
-			// baseState:1   update ->  2  -> memoizedState:2
-			// 例如：this.setState(2)
-			result.memoizedState = action;
-		}
+		/**
+		 * 批处理 update（遍历环状链表）
+		 * 注：并不是类似防抖/节流，只是交由最后一次更新来 批处理 前几次更新的 update
+		 */
+
+		// 第一个 update
+		const first = pendingUpdate.next;
+		let pending = pendingUpdate.next as Update<any>;
+
+		// 批处理 update
+		do {
+			const action = pending.action;
+			if (action instanceof Function) {
+				// baseState:1   update ->  (x) => 4x  -> memoizedState:4
+				// 例如：this.setState((x) => 4x)
+				baseState = action(baseState);
+			} else {
+				// baseState:1   update ->  2  -> memoizedState:2
+				// 例如：this.setState(2)
+				baseState = action;
+			}
+			pending = pending?.next as Update<any>;
+		} while (pending !== first);
 	}
 
+	result.memoizedState = baseState;
 	return result;
 };
