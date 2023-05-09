@@ -13,3 +13,14 @@ export function mergeLanes(laneA: Lane, laneB: Lane): Lanes {
 export function requestUpdateLane() {
 	return SyncLane;
 }
+
+// 获取优先级最高的 lane （二进制越小优先级越高）
+export function getHighestPriorityLane(lanes: Lanes): Lane {
+	/**
+	 * 始终返回最靠右的那一位，也就是最小的
+	 * 例如：
+	 * ① 0b0011 -> 0b0001
+	 * ② 0b0110 -> 0b0010
+	 */
+	return lanes & -NoLanes;
+}
