@@ -7,6 +7,7 @@ import {
 } from './workTags';
 import { Flags, NoFlags } from './fiberFlags';
 import { Container } from 'hostConfig';
+import { Lane, Lanes, NoLane, NoLanes } from './fiberLanes';
 
 export class FiberNode {
 	type: any; // fiberNode 对应的 reactElement 的类型
@@ -61,12 +62,16 @@ export class FiberRootNode {
 	container: Container; // 宿主环境，即页面挂载的dom根节点（真实dom）
 	current: FiberNode; // 指向 hostRootFiber，即页面挂载的dom根节点对应的fiber
 	finishedWork: FiberNode | null; // 更新完成以后的 hostRootFiber
+	pendingLanes: Lanes;
+	finishedLane: Lane;
 
 	constructor(container: Container, hostRootFiber: FiberNode) {
 		this.container = container;
 		this.current = hostRootFiber;
 		hostRootFiber.stateNode = this;
 		this.finishedWork = null;
+		this.pendingLanes = NoLanes;
+		this.finishedLane = NoLane;
 	}
 }
 

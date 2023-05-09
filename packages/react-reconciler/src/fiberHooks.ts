@@ -10,6 +10,7 @@ import {
 } from './updateQueue';
 import { scheduleUpdateOnFiber } from './workLoop';
 import { Action } from 'shared/ReactTypes';
+import { requestUpdateLane } from './fiberLanes';
 
 const { currentDispatcher } = internals;
 
@@ -109,8 +110,10 @@ function dispatchSetState<State>(
 	updateQueue: UpdateQueue<State>,
 	action: Action<State>
 ) {
+	// 不同
+	const lane = requestUpdateLane();
 	// 接入更新机制
-	const update = createUpdate(action);
+	const update = createUpdate(action, lane);
 	enqueueUpdate(updateQueue, update);
 	scheduleUpdateOnFiber(fiber);
 }

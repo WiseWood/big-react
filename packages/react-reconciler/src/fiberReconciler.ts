@@ -9,6 +9,7 @@ import {
 } from './updateQueue';
 import { HostRoot } from './workTags';
 import { scheduleUpdateOnFiber } from './workLoop';
+import { requestUpdateLane } from './fiberLanes';
 
 // 在 ReactDOM.createRoot() 时会调用
 export function createContainer(container: Container) {
@@ -24,8 +25,9 @@ export function updateContainer(
 	root: FiberRootNode
 ) {
 	const hostRootFiber = root.current;
+	const lane = requestUpdateLane();
 	// 设置此时的 更新的状态为 reactElement，即：<App/>
-	const update = createUpdate<ReactElementType | null>(element);
+	const update = createUpdate<ReactElementType | null>(element, lane);
 	enqueueUpdate(
 		hostRootFiber.updateQueue as UpdateQueue<ReactElementType | null>,
 		update
