@@ -9,6 +9,7 @@ import { commitMutationEffects } from './commitWork';
 import {
 	getHighestPriorityLane,
 	Lane,
+	markRootFinished,
 	mergeLanes,
 	NoLane,
 	SyncLane
@@ -17,9 +18,11 @@ import { flushSyncCallbacks, scheduleSyncCallback } from './syncTaskQueue';
 import { scheduleMicroTask } from 'hostConfig';
 
 let workInProgress: FiberNode | null = null;
+let wipRootRenderLane: Lane = NoLane;
 
-function prepareFreshStack(root: FiberRootNode) {
+function prepareFreshStack(root: FiberRootNode, lane: Lane) {
 	workInProgress = createWorkInProgress(root.current, {});
+	wipRootRenderLane = lane;
 }
 
 // TODO: 在 fiber 中调度 update
@@ -103,8 +106,12 @@ function performSyncWorkOnRoot(root: FiberRootNode, lane: Lane) {
 		return;
 	}
 
+	if (__DEV__) {
+		console.warn('render阶段开始');
+	}
+
 	// 初始化，让当前的 workInProgress 指向第一个要遍历的 fiberNode，即 hostRootFiber
-	prepareFreshStack(root);
+	prepareFreshStack(root, lane);
 
 	do {
 		try {
@@ -121,6 +128,8 @@ function performSyncWorkOnRoot(root: FiberRootNode, lane: Lane) {
 	// 将当前已经标记完成的 wip fiberNode记录到 finishedWork 中
 	const finishedWork = root.current.alternate;
 	root.finishedWork = finishedWork;
+	root.finishedLane = lane;
+	wipRootRenderLane = NoLane;
 
 	// 准备开始 commit 阶段，将标记好的flags 提交到宿主环境的过程
 	commitRoot(root);
@@ -137,8 +146,17 @@ function commitRoot(root: FiberRootNode) {
 		console.warn('commit 阶段开始', finishedWork);
 	}
 
+	const lane = root.finishedLane;
+
+	if (lane === NoLane && __DEV__) {
+		console.error('commit阶段finishedLane不应该是Nolane');
+	}
+
 	// 重置
 	root.finishedWork = null;
+	root.finishedLane = NoLane;
+
+	markRootFinished(root, lane);
 
 	// 判断是否存在3个子阶段需要执行的操作
 	const subtreeHasEffect =
@@ -168,7 +186,7 @@ function workLoop() {
 }
 
 function performUnitOfWork(fiber: FiberNode) {
-	const next = beginWork(fiber); // 可能返回子fiberNode 或者 null
+	const next = beginWork(fiber, wipRootRenderLane); // 可能返回子fiberNode 或者 null
 	fiber.memoizedProps = fiber.pendingProps; // 此次工作单元结束后，确定props
 
 	// 没有子节点，说明递阶段结束，进行归阶段

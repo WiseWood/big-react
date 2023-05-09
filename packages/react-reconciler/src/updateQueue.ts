@@ -58,7 +58,8 @@ export const enqueueUpdate = <State>(
 // 处理更新
 export const processUpdateQueue = <State>(
 	baseState: State,
-	pendingUpdate: Update<State> | null
+	pendingUpdate: Update<State> | null,
+	renderLane: Lane
 ): { memoizedState: State } => {
 	const result: ReturnType<typeof processUpdateQueue<State>> = {
 		memoizedState: baseState
@@ -76,15 +77,22 @@ export const processUpdateQueue = <State>(
 
 		// 批处理 update
 		do {
-			const action = pending.action;
-			if (action instanceof Function) {
-				// baseState:1   update ->  (x) => 4x  -> memoizedState:4
-				// 例如：this.setState((x) => 4x)
-				baseState = action(baseState);
+			const updateLane = pending.lane;
+			if (updateLane === renderLane) {
+				const action = pending.action;
+				if (action instanceof Function) {
+					// baseState:1   update ->  (x) => 4x  -> memoizedState:4
+					// 例如：this.setState((x) => 4x)
+					baseState = action(baseState);
+				} else {
+					// baseState:1   update ->  2  -> memoizedState:2
+					// 例如：this.setState(2)
+					baseState = action;
+				}
 			} else {
-				// baseState:1   update ->  2  -> memoizedState:2
-				// 例如：this.setState(2)
-				baseState = action;
+				if (__DEV__) {
+					console.error('不应该进入updateLane !== renderLane的逻辑');
+				}
 			}
 			pending = pending?.next as Update<any>;
 		} while (pending !== first);

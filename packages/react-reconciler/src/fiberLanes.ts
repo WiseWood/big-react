@@ -1,3 +1,5 @@
+import { FiberRootNode } from './fiber';
+
 export type Lane = number;
 export type Lanes = number; // lane 的集合，占用空间更小
 
@@ -22,5 +24,9 @@ export function getHighestPriorityLane(lanes: Lanes): Lane {
 	 * ① 0b0011 -> 0b0001
 	 * ② 0b0110 -> 0b0010
 	 */
-	return lanes & -NoLanes;
+	return lanes & -lanes;
+}
+
+export function markRootFinished(root: FiberRootNode, lane: Lane) {
+	root.pendingLanes &= ~lane;
 }
