@@ -98,6 +98,8 @@ function updateState<State>(): [State, Dispatch<State>] {
 	const queue = hook.updateQueue as UpdateQueue<State>;
 	// 获取 调用dispatch 时的创建的 update
 	const pending = queue.shared.pending;
+	// 置空，表示 update被消费了
+	queue.shared.pending = null;
 
 	if (pending !== null) {
 		// 计算新 state 的逻辑
