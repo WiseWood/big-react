@@ -6,11 +6,12 @@ import {
 	Instance,
 	removeChild
 } from 'hostConfig';
-import { FiberNode, FiberRootNode } from './fiber';
+import { FiberNode, FiberRootNode, PendingPassiveEffects } from './fiber';
 import {
 	ChildDeletion,
 	MutationMask,
 	NoFlags,
+	PassiveEffect,
 	Placement,
 	Update
 } from './fiberFlags';
@@ -20,10 +21,14 @@ import {
 	HostRoot,
 	HostText
 } from './workTags';
+import { Effect, FCUpdateQueue } from './fiberHooks';
 
 let nextEffect: FiberNode | null = null;
 
-export const commitMutationEffects = (finishedWork: FiberNode) => {
+export const commitMutationEffects = (
+	finishedWork: FiberNode,
+	root: FiberRootNode
+) => {
 	nextEffect = finishedWork;
 
 	// 递归
@@ -45,7 +50,7 @@ export const commitMutationEffects = (finishedWork: FiberNode) => {
 			// 向上遍历
 			up: while (nextEffect !== null) {
 				// 开始处理当前节点的 flags
-				commitMutationEffectsOnFiber(nextEffect);
+				commitMutationEffectsOnFiber(nextEffect, root);
 				const sibling: FiberNode | null = nextEffect.sibling;
 
 				if (sibling !== null) {
@@ -60,7 +65,10 @@ export const commitMutationEffects = (finishedWork: FiberNode) => {
 	}
 };
 
-const commitMutationEffectsOnFiber = (finishedWork: FiberNode) => {
+const commitMutationEffectsOnFiber = (
+	finishedWork: FiberNode,
+	root: FiberRootNode
+) => {
 	const flags = finishedWork.flags;
 
 	// 处理 Placement 的flags
@@ -82,13 +90,42 @@ const commitMutationEffectsOnFiber = (finishedWork: FiberNode) => {
 		const deletions = finishedWork.deletions;
 		if (deletions !== null) {
 			deletions.forEach((childToDelete) => {
-				commitDeletion(childToDelete);
+				commitDeletion(childToDelete, root);
 			});
 		}
 		// 提交完移除
 		finishedWork.flags &= ~ChildDeletion;
 	}
+
+	// flags：PassiveEffect
+	if ((flags & PassiveEffect) !== NoFlags) {
+		// 收集 create 回调
+		commitPassiveEffect(finishedWork, root, 'update');
+		// 移除 flag
+		finishedWork.flags &= ~PassiveEffect;
+	}
 };
+
+function commitPassiveEffect(
+	fiber: FiberNode,
+	root: FiberRootNode,
+	type: keyof PendingPassiveEffects
+) {
+	if (
+		fiber.tag !== FunctionComponent ||
+		(type === 'update' && (fiber.flags & PassiveEffect) === NoFlags)
+	) {
+		return;
+	}
+
+	const updateQueue = fiber.updateQueue as FCUpdateQueue<any>;
+	if (updateQueue !== null) {
+		if (updateQueue.lastEffect === null && __DEV__) {
+			console.error('当FC存在PassiveEffect flag时，不应该不存在 effect');
+		}
+		root.pendingPassiveEffects[type].push(updateQueue.lastEffect as Effect);
+	}
+}
 
 function recordHostChildrenToDelete(
 	childrenToDelete: FiberNode[],
@@ -112,7 +149,7 @@ function recordHostChildrenToDelete(
 	}
 }
 
-function commitDeletion(childToDelete: FiberNode) {
+function commitDeletion(childToDelete: FiberNode, root: FiberRootNode) {
 	/**
 	 * 例如1：移除 ul，因为是 host，可以直接移除，然后要 ummount 子树所有的节点
 	 * <div>
@@ -140,7 +177,11 @@ function commitDeletion(childToDelete: FiberNode) {
 				recordHostChildrenToDelete(rootHostChildrenToDelete, unmountFiber);
 				return;
 			case FunctionComponent:
-				// TODO useEffect unmount、解绑 ref
+				// TODO 、解绑 ref
+
+				// useEffect unmount
+				commitPassiveEffect(unmountFiber, root, 'unmount');
+
 				return;
 			default:
 				if (__DEV__) {

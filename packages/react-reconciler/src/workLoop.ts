@@ -167,7 +167,7 @@ function commitRoot(root: FiberRootNode) {
 		// beforeMutation
 
 		// mutation Placement
-		commitMutationEffects(finishedWork);
+		commitMutationEffects(finishedWork, root);
 
 		// 切换 current 为 wip（发生在 mutation 和 layout 阶段之间）
 		root.current = finishedWork;
