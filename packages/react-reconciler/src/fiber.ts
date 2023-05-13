@@ -68,8 +68,8 @@ export class FiberRootNode {
 	container: Container; // 宿主环境，即页面挂载的dom根节点（真实dom）
 	current: FiberNode; // 指向 hostRootFiber，即页面挂载的dom根节点对应的fiber
 	finishedWork: FiberNode | null; // 更新完成以后的 hostRootFiber
-	pendingLanes: Lanes;
-	finishedLane: Lane;
+	pendingLanes: Lanes; // 所有未被消费的 lane 集合
+	finishedLane: Lane; // 本次更新消费的 lane
 	pendingPassiveEffects: PendingPassiveEffects; // 用于存储此次更新自下而上收集的 useEffect create/destroy 回调
 
 	constructor(container: Container, hostRootFiber: FiberNode) {
