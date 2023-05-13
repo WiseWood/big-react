@@ -9,6 +9,7 @@ import {
 import { FiberNode, FiberRootNode, PendingPassiveEffects } from './fiber';
 import {
 	ChildDeletion,
+	Flags,
 	MutationMask,
 	NoFlags,
 	PassiveEffect,
@@ -22,6 +23,7 @@ import {
 	HostText
 } from './workTags';
 import { Effect, FCUpdateQueue } from './fiberHooks';
+import { HookHasEffect } from './hookEffectTags';
 
 let nextEffect: FiberNode | null = null;
 
@@ -125,6 +127,68 @@ function commitPassiveEffect(
 		}
 		root.pendingPassiveEffects[type].push(updateQueue.lastEffect as Effect);
 	}
+}
+
+// 遍历 effect 链表
+function commitHookEffectList(
+	flags: Flags,
+	lastEffect: Effect,
+	callback: (effect: Effect) => void
+) {
+	let effect = lastEffect.next as Effect;
+
+	do {
+		if ((effect.tag & flags) === flags) {
+			callback(effect);
+		}
+		effect = effect.next as Effect;
+	} while (effect !== lastEffect.next);
+}
+
+/**
+ * 知识备注：
+ * 每次重新渲染依赖项更改的组件后：
+ * - 首先，cleanup code 使用旧的props和state运行。
+ * - 然后，setup code 使用新的props和state运行。
+ * cleanup code 在组件从页面中删除（卸载）后最后一次运行。
+ */
+
+/**
+ * 当FC组件卸载时，最后一次执行 effect 销毁（return）回调，官方称作 cleanup code
+ * 并移除 HookHasEffect，表示下次若再遍历到此 effect，不会执行再执行任何回调
+ * （注意：mount时不会执行，因为 destroy 来自 create 执行完return的结果）
+ */
+export function commitHookEffectListUnmount(flags: Flags, lastEffect: Effect) {
+	commitHookEffectList(flags, lastEffect, (effect) => {
+		const destroy = effect.destroy;
+		if (typeof destroy === 'function') {
+			destroy();
+		}
+		effect.tag &= ~HookHasEffect;
+	});
+}
+
+/**
+ * 当FC组件重新渲染更新时，需要重新执行 effect 销毁（return）回调，官方称作 cleanup code
+ * （注意：mount时不会执行，因为 destroy 来自 create 执行完return的结果）
+ */
+export function commitHookEffectListDestroy(flags: Flags, lastEffect: Effect) {
+	commitHookEffectList(flags, lastEffect, (effect) => {
+		const destroy = effect.destroy;
+		if (typeof destroy === 'function') {
+			destroy();
+		}
+	});
+}
+
+// 当FC组件重新渲染更新时，需要重新执行 effect create回调，官方称作 setup code
+export function commitHookEffectListCreate(flags: Flags, lastEffect: Effect) {
+	commitHookEffectList(flags, lastEffect, (effect) => {
+		const create = effect.create;
+		if (typeof create === 'function') {
+			effect.destroy = create();
+		}
+	});
 }
 
 function recordHostChildrenToDelete(
