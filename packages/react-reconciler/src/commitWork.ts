@@ -13,6 +13,7 @@ import {
 	MutationMask,
 	NoFlags,
 	PassiveEffect,
+	PassiveMask,
 	Placement,
 	Update
 } from './fiberFlags';
@@ -39,7 +40,7 @@ export const commitMutationEffects = (
 
 		// 判断子节点中是否含有 mutation 阶段要执行的 flags
 		if (
-			(nextEffect.subtreeFlags & MutationMask) !== NoFlags &&
+			(nextEffect.subtreeFlags & (MutationMask | PassiveMask)) !== NoFlags &&
 			child !== null
 		) {
 			// 继续向下遍历
